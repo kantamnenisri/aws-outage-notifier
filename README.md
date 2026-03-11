@@ -2,6 +2,10 @@
 
 A fresh infrastructure monitoring service that tracks AWS service health via public RSS feeds and provides multi-channel notifications across WhatsApp, Email, and SMS.
 
+**Live Demo:** [https://aws-outage-notifier.onrender.com](https://aws-outage-notifier.onrender.com)
+
+**Last Updated:** February 15, 2026
+
 ## Features
 - **RSS Monitoring**: Polls `status.aws.amazon.com/rss/all.rss` every 60 seconds.
 - **Incident Classification**: Automatically identifies DEGRADED and OUTAGE states.
