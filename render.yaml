@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: aws-outage-notifier
+    env: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: CALLMEBOT_PHONE
+        sync: false
+      - key: CALLMEBOT_APIKEY
+        sync: false
+      - key: ALERT_EMAIL_TO
+        sync: false
+      - key: ALERT_EMAIL_FROM
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      - key: SMS_PHONE
+        sync: false
+      - key: ENABLE_SMS
+        default: "true"
