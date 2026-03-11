@@ -22,12 +22,30 @@ def classify_status(title: str) -> str:
         return "OPERATIONAL"
     return "UNKNOWN"
 
-def parse_service_region(title: str):
+def parse_service_region(entry):
+    title = entry.title
     # Example: "[RESOLVED] Service disruption: Amazon EC2 (N. Virginia)"
     # Regex to find "Service: Region"
     match = re.search(r": (.*) \((.*)\)", title)
     if match:
         return match.group(1), match.group(2)
+    
+    # Try extracting from GUID (common for multiple services)
+    # guid: https://status.aws.amazon.com/#multipleservices-me-south-1_1772556000
+    guid = getattr(entry, 'guid', '')
+    if '#' in guid:
+        fragment = guid.split('#')[-1]
+        if '-' in fragment:
+            # multipleservices-me-south-1_1772556000 -> me-south-1
+            # Split by _ first to get the part before timestamp
+            part_before_ts = fragment.split('_')[0]
+            # Find the first hyphen which is after 'multipleservices' or service name
+            if '-' in part_before_ts:
+                region = '-'.join(part_before_ts.split('-')[1:])
+                if region:
+                    service = title.split(':')[0] if ':' in title else "Multiple Services"
+                    return service, region.upper()
+
     return title, "Global"
 
 async def poll_aws_rss():
@@ -39,9 +57,9 @@ async def poll_aws_rss():
         new_status = {}
         
         for entry in feed.entries:
-            service, region = parse_service_region(entry.title)
+            service, region = parse_service_region(entry)
             status = classify_status(entry.title)
-            key = f"{service}_{region}"
+            key = f"{service}_{region}_{entry.title}" # More unique key
             
             new_status[key] = {
                 "service": service,
@@ -49,7 +67,8 @@ async def poll_aws_rss():
                 "status": status,
                 "title": entry.title,
                 "description": entry.description,
-                "published": entry.published
+                "published": entry.published,
+                "guid": getattr(entry, 'guid', '')
             }
 
             if status in ["OUTAGE", "DEGRADED"]:
@@ -61,15 +80,16 @@ async def poll_aws_rss():
                         "service": service,
                         "region": region,
                         "status": status,
-                        "message": entry.description
+                        "message": entry.description,
+                        "published": entry.published
                     }
                     
                     # Trigger Notifiers
-                    await asyncio.gather(
-                        send_whatsapp_alert(service, region, status, entry.description, entry.published),
-                        asyncio.to_thread(send_email_alert, service, region, status, entry.description, entry.published),
-                        send_sms_alert(service, region, entry.description)
-                    )
+                    # Ensure they are awaited or scheduled
+                    asyncio.create_task(send_whatsapp_alert(service, region, status, entry.description, entry.published))
+                    # send_email_alert is sync, use to_thread
+                    asyncio.create_task(asyncio.to_thread(send_email_alert, service, region, status, entry.description, entry.published))
+                    asyncio.create_task(send_sms_alert(service, region, entry.description))
                     
                     state.mark_alerted(key, alert_details)
 
