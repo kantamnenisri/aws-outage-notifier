@@ -35,6 +35,10 @@ async def root():
 async def health():
     return {"status": "ok", "monitoring": "active", "timestamp": datetime.now().isoformat()}
 
+@app.get("/ping")
+async def ping():
+    return "OK"
+
 @app.get("/status")
 async def get_status():
     return current_status
